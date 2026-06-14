@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Environment variables / secrets
+.env
+*.env
+
+# Docker
+*.log
+
+# OS
+.DS_Store
+
+# Spark
+spark-warehouse/
+*.crc
+_SUCCESS
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
