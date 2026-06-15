@@ -1,0 +1,121 @@
+"""
+app.py
+
+Streamlit Executive Overview dashboard for the Real-Time Streaming
+Analytics Platform. Reads aggregated KPIs from PostgreSQL (written by
+the Spark Structured Streaming job) and displays them as live-updating
+charts and KPI cards.
+
+Run with:
+    streamlit run dashboard/app.py
+"""
+
+import streamlit as st
+import pandas as pd
+import psycopg2
+from sqlalchemy import create_engine
+import plotly.express as px
+from datetime import datetime, timezone
+
+# --- Page config ---
+st.set_page_config(
+    page_title="SaaS Analytics Platform",
+    page_icon="📊",
+    layout="wide",
+)
+
+# --- Postgres connection ---
+# When running Streamlit locally (outside Docker), Postgres is reachable
+# at localhost:5433 (the host port mapped in docker-compose.yml).
+PG_CONFIG = {
+    "host": "localhost",
+    "port": 5433,
+    "dbname": "streaming_analytics",
+    "user": "streaming_user",
+    "password": "streaming_pass",
+}
+
+
+def load_aggregated_metrics() -> pd.DataFrame:
+    """
+    Open a fresh connection and load all rows from aggregated_metrics.
+
+    A new connection is opened on each call (rather than cached) because
+    this function runs inside an auto-refreshing fragment -- a cached
+    connection can go stale across refresh cycles. Connections to a
+    local Postgres are cheap enough that this isn't a performance concern
+    at this scale.
+    """
+    engine = create_engine(
+        f"postgresql+psycopg2://{PG_CONFIG['user']}:{PG_CONFIG['password']}"
+        f"@{PG_CONFIG['host']}:{PG_CONFIG['port']}/{PG_CONFIG['dbname']}"
+    )
+    query = """
+        SELECT window_start, window_end, metric_name, metric_value
+        FROM aggregated_metrics
+        WHERE metric_name = 'events_per_minute'
+        ORDER BY window_start
+    """
+    df = pd.read_sql(query, engine)
+    return df
+
+
+@st.fragment(run_every="5s")
+def live_dashboard():
+    """
+    The auto-refreshing portion of the dashboard. Everything inside this
+    function reruns every 5 seconds without reloading the whole page
+    (e.g. the title and static text above stay put).
+    """
+    st.caption(
+        f"Last refreshed: {datetime.now(timezone.utc).strftime('%H:%M:%S UTC')} "
+        f"(auto-refreshes every 5 seconds)"
+    )
+
+    df = load_aggregated_metrics()
+
+    if df.empty:
+        st.warning(
+            "No data yet. Make sure the producer and Spark streaming "
+            "job are running, then wait ~1 minute for the first window "
+            "to close."
+        )
+        return
+
+    # --- KPI cards ---
+    latest = df.iloc[-1]
+    total_events = int(df["metric_value"].sum())
+    avg_events_per_minute = df["metric_value"].mean()
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Events (all windows)", f"{total_events:,}")
+    col2.metric("Latest Window Events", f"{int(latest['metric_value']):,}")
+    col3.metric("Avg Events / Minute", f"{avg_events_per_minute:,.0f}")
+
+    # --- Time series chart ---
+    st.subheader("Events Per Minute (Live)")
+    fig = px.line(
+        df,
+        x="window_start",
+        y="metric_value",
+        markers=True,
+        labels={"window_start": "Window Start (UTC)", "metric_value": "Event Count"},
+    )
+    fig.update_layout(height=400)
+    st.plotly_chart(fig, width='stretch')
+
+    # --- Raw data table (collapsible) ---
+    with st.expander("Raw aggregated_metrics data"):
+        st.dataframe(df, width='stretch')
+
+
+def main():
+    st.title("📊 SaaS Product Analytics — Executive Overview")
+    st.markdown(
+        "Real-time event pipeline: **Kafka → Spark Structured Streaming → PostgreSQL**"
+    )
+    live_dashboard()
+
+
+if __name__ == "__main__":
+    main()

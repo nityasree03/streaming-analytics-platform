@@ -1,6 +1,6 @@
 # Core
-pandas==2.2.2
-numpy==1.26.4
+pandas==3.0.3
+numpy==2.4.6
 
 # Kafka
 kafka-python==3.0.0
@@ -12,12 +12,12 @@ Faker==40.23.0
 pyspark==3.5.1
 
 # Database
-psycopg2-binary==2.9.9
-sqlalchemy==2.0.31
+psycopg2-binary==2.9.12
+SQLAlchemy==2.0.50
 
 # Dashboard
-streamlit==1.36.0
-plotly==5.22.0
+streamlit==1.58.0
+plotly==6.8.0
 
 # Machine Learning (Phase 11)
 scikit-learn==1.5.0
