@@ -1,5 +1,7 @@
 # Real-Time Streaming Analytics Platform
 
+🚀 **Live Demo**: https://streaming-analytics-platform-3yqwyrs4mcmw9wm4dpyrgd.streamlit.app
+
 A production-style, real-time analytics pipeline for a SaaS company,
 built end-to-end: synthetic user events are generated, streamed through
 Kafka, processed in real time by Spark Structured Streaming, persisted
