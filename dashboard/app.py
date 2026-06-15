@@ -29,15 +29,31 @@ st.set_page_config(
 )
 
 # --- Postgres connection ---
-# When running Streamlit locally (outside Docker), Postgres is reachable
-# at localhost:5433 (the host port mapped in docker-compose.yml).
-PG_CONFIG = {
-    "host": "localhost",
-    "port": 5433,
-    "dbname": "streaming_analytics",
-    "user": "streaming_user",
-    "password": "streaming_pass",
-}
+# Database connection config. On Streamlit Community Cloud, these values
+# come from st.secrets (configured in the app's "Secrets" settings, using
+# TOML format -- see dashboard/README.md for the expected keys). When
+# running locally, st.secrets falls back to these defaults pointing at
+# the docker-compose Postgres (host-mapped to localhost:5433).
+def _get_pg_config():
+    try:
+        return {
+            "host": st.secrets["postgres"]["host"],
+            "port": st.secrets["postgres"]["port"],
+            "dbname": st.secrets["postgres"]["dbname"],
+            "user": st.secrets["postgres"]["user"],
+            "password": st.secrets["postgres"]["password"],
+        }
+    except (KeyError, FileNotFoundError):
+        return {
+            "host": "localhost",
+            "port": 5433,
+            "dbname": "streaming_analytics",
+            "user": "streaming_user",
+            "password": "streaming_pass",
+        }
+
+
+PG_CONFIG = _get_pg_config()
 
 
 def load_aggregated_metrics() -> pd.DataFrame:
