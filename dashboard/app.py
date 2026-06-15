@@ -13,7 +13,11 @@ Run with:
 import streamlit as st
 import pandas as pd
 import psycopg2
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+import sys
+import os
+sys.path.insert(0, os.path.dirname(__file__))
+import nl_to_sql
 import plotly.express as px
 from datetime import datetime, timezone
 
@@ -109,12 +113,52 @@ def live_dashboard():
         st.dataframe(df, width='stretch')
 
 
+def ask_question_section():
+    """
+    Renders the "Ask a Question" natural-language-to-SQL section.
+    Takes a plain-English question, generates a read-only SQL query via
+    the Anthropic API (dashboard.nl_to_sql), executes it against
+    Postgres, and displays the results alongside the generated SQL for
+    transparency.
+    """
+    st.divider()
+    st.subheader("🤖 Ask a Question (AI-Powered)")
+    st.caption(
+        "Ask a question in plain English and Claude will generate a SQL "
+        "query to answer it. Example: \"How many users are on the free plan?\""
+    )
+
+    question = st.text_input("Your question", placeholder="e.g. Which feature is used most often?")
+
+    if st.button("Ask") and question:
+        try:
+            sql = nl_to_sql.generate_sql(question)
+        except nl_to_sql.SQLGenerationError as e:
+            st.error(str(e))
+            return
+
+        st.code(sql, language="sql")
+
+        try:
+            engine = create_engine(
+                f"postgresql+psycopg2://{PG_CONFIG['user']}:{PG_CONFIG['password']}"
+                f"@{PG_CONFIG['host']}:{PG_CONFIG['port']}/{PG_CONFIG['dbname']}"
+            )
+            with engine.connect() as conn:
+                conn.execute(text("SET TRANSACTION READ ONLY"))
+                result_df = pd.read_sql(sql, conn)
+            st.dataframe(result_df, width='stretch')
+        except Exception as e:
+            st.error(f"Query execution failed: {e}")
+
+
 def main():
     st.title("📊 SaaS Product Analytics — Executive Overview")
     st.markdown(
         "Real-time event pipeline: **Kafka → Spark Structured Streaming → PostgreSQL**"
     )
     live_dashboard()
+    ask_question_section()
 
 
 if __name__ == "__main__":
