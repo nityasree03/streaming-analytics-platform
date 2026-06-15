@@ -43,6 +43,14 @@ PG_CONFIG = {
     "password": "streaming_pass",
 }
 
+# JDBC connection string for the raw_events append-only writer.
+JDBC_URL = "jdbc:postgresql://postgres:5432/streaming_analytics"
+JDBC_PROPERTIES = {
+    "user": "streaming_user",
+    "password": "streaming_pass",
+    "driver": "org.postgresql.Driver",
+}
+
 UPSERT_SQL = """
     INSERT INTO aggregated_metrics (window_start, window_end, metric_name, metric_value)
     VALUES (%s, %s, %s, %s)
@@ -87,6 +95,33 @@ def write_to_postgres(batch_df, batch_id):
     print(f"Batch {batch_id}: upserted {len(rows)} row(s) into aggregated_metrics")
 
 
+def write_raw_events(batch_df, batch_id):
+    """
+    Called once per micro-batch by foreachBatch. Appends raw parsed events
+    to the raw_events table for full-fidelity historical analysis (DAU,
+    MAU, retention, funnels -- queries that need event-level granularity
+    rather than pre-aggregated windows).
+    """
+    if batch_df.isEmpty():
+        return
+
+    output_df = batch_df.select(
+        col("user_id").cast("string"),
+        col("session_id").cast("string"),
+        col("timestamp").alias("event_timestamp"),
+        col("event_type"),
+        col("plan_tier"),
+        col("feature_name"),
+        col("country"),
+    )
+
+    output_df.write \
+        .mode("append") \
+        .jdbc(url=JDBC_URL, table="raw_events", properties=JDBC_PROPERTIES)
+
+    print(f"Batch {batch_id}: appended {output_df.count()} row(s) to raw_events")
+
+
 def main():
     spark = SparkSession.builder \
         .appName("SaaSEventStreamProcessor") \
@@ -113,14 +148,23 @@ def main():
         .groupBy(window(col("timestamp"), "1 minute")) \
         .agg(count("*").alias("event_count"))
 
-    # --- Upsert into PostgreSQL via foreachBatch ---
-    query = events_per_minute.writeStream \
+    # --- Upsert aggregated metrics into PostgreSQL via foreachBatch ---
+    metrics_query = events_per_minute.writeStream \
         .outputMode("update") \
         .foreachBatch(write_to_postgres) \
         .trigger(processingTime="10 seconds") \
         .start()
 
-    query.awaitTermination()
+    # --- Append raw events into PostgreSQL via foreachBatch ---
+    raw_events_query = parsed_stream.writeStream \
+        .outputMode("append") \
+        .foreachBatch(write_raw_events) \
+        .trigger(processingTime="10 seconds") \
+        .start()
+
+    # Wait for both streaming queries to run indefinitely.
+    metrics_query.awaitTermination()
+    raw_events_query.awaitTermination()
 
 
 if __name__ == "__main__":

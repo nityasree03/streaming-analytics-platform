@@ -15,8 +15,8 @@
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS raw_events (
     id              BIGSERIAL PRIMARY KEY,
-    user_id         UUID NOT NULL,
-    session_id      UUID NOT NULL,
+    user_id         VARCHAR(36) NOT NULL,
+    session_id      VARCHAR(36) NOT NULL,
     event_timestamp TIMESTAMPTZ NOT NULL,
     event_type      VARCHAR(50) NOT NULL,
     plan_tier       VARCHAR(20) NOT NULL,
