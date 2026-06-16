@@ -68,7 +68,7 @@ def load_aggregated_metrics() -> pd.DataFrame:
     """
     engine = create_engine(
         f"postgresql+psycopg2://{PG_CONFIG['user']}:{PG_CONFIG['password']}"
-        f"@{PG_CONFIG['host']}:{PG_CONFIG['port']}/{PG_CONFIG['dbname']}"
+        f"@{PG_CONFIG['host']}:{PG_CONFIG['port']}/{PG_CONFIG['dbname']}?sslmode=require"
     )
     query = """
         SELECT window_start, window_end, metric_name, metric_value
@@ -158,7 +158,7 @@ def ask_question_section():
         try:
             engine = create_engine(
                 f"postgresql+psycopg2://{PG_CONFIG['user']}:{PG_CONFIG['password']}"
-                f"@{PG_CONFIG['host']}:{PG_CONFIG['port']}/{PG_CONFIG['dbname']}"
+                f"@{PG_CONFIG['host']}:{PG_CONFIG['port']}/{PG_CONFIG['dbname']}?sslmode=require"
             )
             with engine.connect() as conn:
                 conn.execute(text("SET TRANSACTION READ ONLY"))
