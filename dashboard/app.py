@@ -147,7 +147,20 @@ def main():
     )
     live_dashboard()
     ask_question_section()
+    debug_connection()
 
 
 if __name__ == "__main__":
     main()
+
+
+def debug_connection():
+    """Temporary debug function - remove after fixing connection."""
+    st.divider()
+    st.subheader("🔧 Connection Debug (Temporary)")
+    try:
+        secrets_host = st.secrets["postgres"]["host"]
+        st.write(f"Host from secrets: {secrets_host[:20]}...")
+    except Exception as e:
+        st.error(f"Secrets error: {e}")
+    st.write(f"PG_CONFIG host: {PG_CONFIG.get('host', 'NOT SET')[:20]}...")
