@@ -108,7 +108,11 @@ def generate_sql(question: str) -> str:
             cannot answer the question, or the generated query fails
             safety validation.
     """
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    try:
+        import streamlit as st
+        api_key = st.secrets.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")
+    except Exception:
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         raise SQLGenerationError(
             "ANTHROPIC_API_KEY is not set. Set this environment variable "
