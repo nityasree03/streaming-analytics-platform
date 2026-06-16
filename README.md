@@ -117,6 +117,12 @@ Postgres, and displays results -- with the generated SQL shown for
 transparency. Includes three layers of safety validation (see
 `dashboard/README.md` for details).
 
+**Note:** this feature requires Anthropic API credits on the configured
+key. With no credit balance, the app degrades gracefully and shows a
+clear error message in the UI rather than crashing -- the rest of the
+dashboard (live KPIs, charts, Grafana monitoring, SQL analytics, ML
+model) is fully functional independent of this feature.
+
 ### Grafana Pipeline Health Monitor
 Two panels: "Seconds Since Last Pipeline Update" (a heartbeat/freshness
 metric) and "Events Per Minute (Pipeline Throughput)" (a time-series
